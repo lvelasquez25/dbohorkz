@@ -1,12 +1,12 @@
 """
-Script para cargar productos en el backend de Railway vía API.
+Script para cargar productos en el backend vía API.
 Uso: SEED_USERNAME=admin SEED_PASSWORD=tupass python seed_remote.py
 """
 import requests
 
 import os
 
-API_URL = os.getenv('API_URL', 'https://dbohorkz-production.up.railway.app')
+API_URL = os.getenv('API_URL', 'https://api.dbohorkz.com')
 
 # Credenciales del admin (pasar como variables de entorno)
 USERNAME = os.getenv('SEED_USERNAME', 'admin')

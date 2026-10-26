@@ -1,0 +1,33 @@
+# Dominios configurables vía variables de entorno (ver .env.prod.example)
+{
+	email {$ACME_EMAIL}
+}
+
+# Frontend: SPA de React
+{$SITE_DOMAIN}, www.{$SITE_DOMAIN} {
+	root * /srv
+	encode gzip zstd
+	try_files {path} /index.html
+	file_server
+}
+
+# Backend Flask
+api.{$SITE_DOMAIN} {
+	encode gzip zstd
+	reverse_proxy backend:5000
+}
+
+# WhatsApp: solo QR y health, protegido con usuario/clave.
+# /api/send-message y /api/info quedan accesibles solo en la red interna de Docker.
+wa.{$SITE_DOMAIN} {
+	@public path /api/qr /api/health
+	handle @public {
+		basic_auth {
+			{$WA_USER} {$WA_PASSWORD_HASH}
+		}
+		reverse_proxy whatsapp:3001
+	}
+	handle {
+		respond 404
+	}
+}
