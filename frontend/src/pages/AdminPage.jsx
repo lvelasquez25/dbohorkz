@@ -6,7 +6,7 @@ import ClientesTab from '../components/admin/ClientesTab';
 const CATEGORIAS_LISTA = ['Uniformes y Vestimenta','Uniforme #3','Gorras','Chapuzas','Linternas','Bolsos','Presillas','Correaje y Cinturones','Portatiles y Fundas','Insignias y Bordados','Defensa y Seguridad','Equipos y Accesorios','Elementos para Curso'];
 const EMPTY_PRODUCT = { name: '', description: '', price: '', stock: '', image_url: '', codigo: '', categoria: '', sizes: '', colors: '' };
 const fmt = (n) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
-const API_URL = process.env.REACT_APP_API_URL || 'https://dbohorkz-production.up.railway.app';
+const API_URL = process.env.REACT_APP_API_URL || 'https://api.dbohorkz.com';
 
 export default function AdminPage() {
   const [token, setToken] = useState(localStorage.getItem('adminToken') || '');

@@ -113,12 +113,10 @@ Orders are created when a customer clicks "Enviar pedido por WhatsApp" in the ca
 - `TYPING_DELAY` — Simulated typing delay in ms
 
 ## Deployment
-- **Frontend**: Cloudflare Pages — dominio: dbohorkz.com (build: `cd frontend && npm install && npm run build`, output: `frontend/build`)
-- **Backend**: Railway — `dbohorkz-production.up.railway.app`
-- **WhatsApp Service**: Railway (separate service) — `whatsapp-services-production-f4d5.up.railway.app`
-- **Images**: Original product images served from Cloudflare Pages (`/Images/`). New uploads stored in Cloudinary
-
-### Cloudflare Pages Notes
-- Deploys sometimes show as "Skipped" — use "Retry deployment" from the 3-dot menu
-- `REACT_APP_API_URL` must be set in Cloudflare Pages environment variables (not just `.env.production`)
-- The `_redirects` file in `frontend/public/` handles SPA routing
+Hostinger VPS with Docker Compose (`docker-compose.prod.yml`); full guide in `DEPLOY_HOSTINGER.md`.
+- **web** (Caddy, `frontend/Dockerfile` + `deploy/Caddyfile`): serves React build at dbohorkz.com with SPA fallback, auto SSL, proxies `api.dbohorkz.com` → backend and `wa.dbohorkz.com` (only `/api/qr`, `/api/health`, basic auth) → whatsapp
+- **backend**: gunicorn, Postgres in the `postgres` container, local uploads in `uploads` volume (`UPLOAD_FOLDER=/app/uploads`)
+- **whatsapp**: session persisted in `wa-auth` volume
+- **Config**: root `.env` (template: `.env.prod.example`). `REACT_APP_API_URL` is baked at build time from `SITE_DOMAIN`
+- **Images**: Original product images bundled in the frontend build (`/Images/`). New uploads stored in Cloudinary
+- **Domain**: registered at GoDaddy; A records point to the VPS. Keep Resend DNS records intact

@@ -54,6 +54,11 @@ def create_app():
         os.makedirs(upload_folder, exist_ok=True)
         return send_from_directory(upload_folder, filename)
 
+    # Healthcheck para Docker / monitoreo
+    @app.route('/api/health')
+    def health():
+        return {'status': 'ok'}
+
     # Registrar blueprints (grupos de rutas)
     from app.routes import auth_bp, products_bp, chatbot_bp, orders_bp, testimonials_bp, customers_bp, catalog_bp
     app.register_blueprint(auth_bp)          # /api/auth/

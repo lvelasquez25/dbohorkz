@@ -137,21 +137,11 @@ BOT_NAME=Sofia Bot
 
 El proyecto está completamente listo para deployment en producción.
 
-### Rápido (15 minutos)
-Ver [DEPLOYMENT_QUICKSTART.md](DEPLOYMENT_QUICKSTART.md) para instrucciones paso a paso.
+Producción en VPS Hostinger con Docker Compose. Ver [DEPLOY_HOSTINGER.md](DEPLOY_HOSTINGER.md).
 
-### Detallado
-- [DEPLOY_GUIDE.md](DEPLOY_GUIDE.md) - Guía completa de deployment
-- [RAILWAY_SETUP.md](RAILWAY_SETUP.md) - Deployment específico para Railway
-- [WHATSAPP_SETUP.md](WHATSAPP_SETUP.md) - Setup de WhatsApp en producción
-
-### Stack de Deployment Recomendado
 ```
-Frontend (Vercel)  ────→  dbohorkz.com
-Backend + WhatsApp (Railway)  ────→  api.dbohorkz.com
+Caddy (SSL)  ──→  dbohorkz.com (React) · api.dbohorkz.com (Flask) · wa.dbohorkz.com (QR WhatsApp)
 ```
-
-**Costo inicial**: $0-10/año (gratis con opción a pagar después)
 
 ---
 ## 🛠️ Licencia
