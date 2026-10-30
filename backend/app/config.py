@@ -11,8 +11,8 @@ class Config:
     """
 
     # --- Base de datos ---
-    # Por defecto usa SQLite local; en producción Railway provee DATABASE_URL
-    # Railway usa el esquema 'postgres://' pero SQLAlchemy requiere 'postgresql://'
+    # Por defecto usa SQLite local; en producción docker-compose.prod.yml provee DATABASE_URL (Postgres)
+    # Algunos proveedores usan el esquema 'postgres://' pero SQLAlchemy requiere 'postgresql://'
     _db_url = os.getenv('DATABASE_URL', 'sqlite:///ecommerce.db')
     if _db_url.startswith('postgres://'):
         _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
@@ -38,9 +38,9 @@ class Config:
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(',')
 
     # --- Uploads de imágenes ---
-    # En producción (Railway): guarda en /app/uploads
+    # En producción docker-compose.prod.yml fija UPLOAD_FOLDER=/app/uploads (volumen persistente)
     # En desarrollo local: guarda en frontend/public/Images
-    _default_upload = os.path.join(os.path.dirname(__file__), '..', 'uploads') if os.getenv('RAILWAY_ENVIRONMENT') else os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'public', 'Images')
+    _default_upload = os.path.join(os.path.dirname(__file__), '..', '..', 'frontend', 'public', 'Images')
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', _default_upload)
 
     # --- Correo electrónico (Flask-Mail via Gmail) ---

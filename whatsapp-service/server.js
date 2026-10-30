@@ -16,7 +16,7 @@ const FLASK_API_URL = process.env.FLASK_API_URL || 'http://localhost:5000';
 let currentQR = null;
 let isReady = false;
 
-// Inicializar cliente WhatsApp con configuración para Docker/Railway
+// Inicializar cliente WhatsApp con configuración para Docker
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
