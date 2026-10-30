@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
 # Decirle a Puppeteer dónde está Chromium
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # Copiar dependencias
 COPY package.json ./
