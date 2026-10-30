@@ -109,11 +109,26 @@ docker image prune -f
 
 ### Backup diario de la base de datos
 
-`crontab -e` y agregar:
+Todos los días a las 3:00 a.m. (hora de Colombia), guarda `/root/backups/db-AAAA-MM-DD.sql.gz` y conserva 7 días:
 
-```cron
-0 3 * * * cd /opt/dbohorkz && mkdir -p /root/backups && docker compose -f docker-compose.prod.yml exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > /root/backups/db-$(date +\%F).sql.gz && find /root/backups -name 'db-*.sql.gz' -mtime +7 -delete
+```bash
+timedatectl set-timezone America/Bogota
+cat > /root/backup-db.sh <<'EOF'
+#!/bin/sh
+# Respaldo diario de la base de datos de dbohorkz (guarda 7 días)
+cd /opt/dbohorkz || exit 1
+mkdir -p /root/backups
+docker compose -f docker-compose.prod.yml exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > /root/backups/db-$(date +%F).sql.gz
+find /root/backups -name 'db-*.sql.gz' -mtime +7 -delete
+EOF
+chmod +x /root/backup-db.sh
+(crontab -l 2>/dev/null | grep -v backup-db.sh; echo "0 3 * * * /root/backup-db.sh >> /root/backups.log 2>&1") | crontab -
+/root/backup-db.sh && ls -lh /root/backups/
 ```
+
+- Ver respaldos: `ls -lh /root/backups/` · errores: `cat /root/backups.log`
+- Las copias quedan en el mismo VPS: activar también el respaldo semanal de Hostinger
+  (hPanel → VPS → Copias de seguridad) para tener una copia fuera del servidor.
 
 ## Verificación
 
