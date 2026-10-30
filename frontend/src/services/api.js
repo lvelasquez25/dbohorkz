@@ -105,8 +105,8 @@ export const testimonialsAPI = {
 };
 
 // Helper: resuelve URL de imagen.
-// Imágenes con UUID (subidas via admin) se cargan desde Railway.
-// Imágenes originales (nombres descriptivos) se cargan desde Cloudflare Pages.
+// Imágenes con UUID (subidas via admin sin Cloudinary) se cargan desde el backend.
+// Imágenes originales (nombres descriptivos) vienen incluidas en el build del frontend.
 export function imageUrl(path) {
   if (!path) return '';
   if (path.startsWith('http')) return path;

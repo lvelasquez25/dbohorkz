@@ -1,114 +1,97 @@
 # Despliegue en VPS Hostinger
 
-Todo corre en un VPS con Docker Compose (`docker-compose.prod.yml`):
+Todo corre en un VPS (Hostinger KVM 1, Ubuntu, IP `179.197.89.184`) con Docker Compose (`docker-compose.prod.yml`):
 
 ```
-Internet ──► Caddy (80/443, SSL automático)
+Internet ──► Caddy (80/443, SSL automático Let's Encrypt)
               ├─ dbohorkz.com / www  → React (estático, fallback SPA)
               ├─ api.dbohorkz.com    → backend Flask (gunicorn)
               └─ wa.dbohorkz.com     → bot WhatsApp (solo /api/qr y /api/health, con usuario/clave)
 backend ──► postgres (volumen pgdata)
 ```
 
-Servicios externos que se mantienen: **Cloudinary** (imágenes subidas) y **Resend** (correo).
-El dominio sigue registrado en **GoDaddy**; solo se cambian los registros DNS.
+Servicios externos: **Cloudinary** (imágenes subidas desde el admin) y **Resend** (correo).
+Dominio registrado en **GoDaddy**, con los nameservers por defecto de GoDaddy.
+
+> Tip: si al pegar varias líneas en la terminal SSH aparece `^[[200~` en la primera, ejecuta (a mano):
+> `echo 'set enable-bracketed-paste off' >> ~/.inputrc && bind -f ~/.inputrc`
 
 ---
 
-## 1. Crear el VPS
+## Instalación desde cero
 
-1. hPanel → VPS → plantilla **Ubuntu 24.04 with Docker** (o Ubuntu + instalar Docker).
-   Plan mínimo recomendado: **KVM 2** (Chromium del bot de WhatsApp consume bastante RAM).
-2. Agregar tu llave SSH y anotar la **IP pública** del VPS.
-3. Firewall del VPS (hPanel → Firewall): permitir solo **22, 80, 443** (TCP) y **443 UDP**.
-4. Conectarse: `ssh root@IP_DEL_VPS`. Si la plantilla no trae Docker:
-   ```bash
-   curl -fsSL https://get.docker.com | sh
-   ```
-
-## 2. Respaldar la base de datos actual (Railway)
-
-En Railway → servicio Postgres → Variables, copiar `DATABASE_PUBLIC_URL`. Desde el VPS:
+### 1. Servidor
 
 ```bash
-docker run --rm postgres:16-alpine pg_dump --no-owner --no-acl "URL_PUBLICA_DE_RAILWAY" > /root/railway.sql
+apt update && apt upgrade -y
+docker --version || curl -fsSL https://get.docker.com | sh
+# Swap de 2 GB (necesario en planes de 4 GB por Chromium del bot)
+fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+# Firewall: solo SSH y web
+ufw allow OpenSSH && ufw allow 80/tcp && ufw allow 443 && ufw --force enable
 ```
 
-## 3. Clonar y configurar
+### 2. Código y `.env`
 
 ```bash
-git clone https://github.com/<usuario>/dbohorkz.git /opt/dbohorkz
-cd /opt/dbohorkz
-cp .env.prod.example .env
-nano .env
+git clone https://github.com/lvelasquez25/dbohorkz.git /opt/dbohorkz
+cd /opt/dbohorkz && cp .env.prod.example .env
+sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -hex 24)|" .env
+sed -i "s|^SECRET_KEY=$|SECRET_KEY=$(openssl rand -hex 32)|" .env
+sed -i "s|^JWT_SECRET_KEY=$|JWT_SECRET_KEY=$(openssl rand -hex 32)|" .env
+# Clave de la página del QR (se muestra una vez; guardarla)
+P=$(openssl rand -hex 8); echo "CLAVE DEL QR: $P"
+H=$(docker run --rm caddy:2-alpine caddy hash-password --plaintext "$P"); sed -i "s|^WA_PASSWORD_HASH=.*|WA_PASSWORD_HASH=${H//\$/\$\$}|" .env
+nano .env   # ACME_EMAIL, CLOUDINARY_*, RESEND_API_KEY
 ```
 
-Completar `.env` copiando los valores actuales de las variables de Railway. **Mantener el mismo
-`JWT_SECRET_KEY`** para no cerrar sesiones. Para la clave de la página del QR:
+Ver qué campos siguen vacíos (sin mostrar valores):
 
 ```bash
-docker run --rm caddy:2-alpine caddy hash-password --plaintext 'una-clave'
-# Pegar el resultado en WA_PASSWORD_HASH reemplazando cada $ por $$
+grep -E '^[A-Z_]+=$' .env | cut -d= -f1
 ```
 
-## 4. Restaurar la base de datos (ANTES de arrancar el backend)
-
-```bash
-docker compose -f docker-compose.prod.yml up -d postgres
-docker compose -f docker-compose.prod.yml exec -T postgres \
-  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < /root/railway.sql
-```
-
-## 5. DNS (GoDaddy)
-
-Primero revisar dónde están los **nameservers** de dbohorkz.com (GoDaddy → Dominio → DNS → Nameservers):
-
-- **Si apuntan a Cloudflare** (`*.ns.cloudflare.com`): editar los registros en Cloudflare, con la nube
-  en **gris (DNS only)** para que Caddy pueda emitir el SSL. O cambiar los nameservers a los de GoDaddy
-  y recrear allí **todos** los registros (copiarlos antes de Cloudflare).
-- **Si son de GoDaddy**: editar en GoDaddy → DNS.
-
-Registros a crear/cambiar (bajar TTL a 600 un día antes):
+### 3. DNS (GoDaddy → DNS → Registros)
 
 | Tipo | Nombre | Valor          |
 |------|--------|----------------|
 | A    | @      | IP_DEL_VPS     |
-| A    | www    | IP_DEL_VPS     |
+| CNAME| www    | dbohorkz.com   |
 | A    | api    | IP_DEL_VPS     |
 | A    | wa     | IP_DEL_VPS     |
 
-Eliminar el CNAME/registro antiguo que apuntaba a Cloudflare Pages (`dbohorkz.pages.dev`).
-**No tocar** los registros de Resend (TXT `resend._domainkey`, MX/TXT de `send`) ni los MX de correo;
-si se cambian los nameservers, hay que copiarlos tal cual.
+No debe quedar ningún registro `A @ → Parked`. Si se usa Resend, agregar también los registros que
+muestra su panel (Domains → dbohorkz.com).
 
-## 6. Arrancar todo
+### 4. Arrancar
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build
-docker compose -f docker-compose.prod.yml logs -f web backend
+docker compose -f docker-compose.prod.yml ps
 ```
 
-Caddy obtiene los certificados en cuanto el DNS resuelve a la IP del VPS.
+Si los certificados no salen porque el DNS aún no apuntaba al VPS: `docker compose -f docker-compose.prod.yml restart web`.
 
-## 7. Vincular WhatsApp
+### 5. Usuario admin (hacerlo de inmediato: el registro es abierto)
 
-Abrir `https://wa.dbohorkz.com/api/qr`, entrar con `WA_USER` y la clave, y escanear desde
-WhatsApp → Dispositivos vinculados. La sesión queda guardada en el volumen `wa-auth`.
-Antes, desvincular la sesión del bot de Railway (o apagar ese servicio) para que no compitan.
+En una sola línea; escribir la clave a mano cuando la pida:
 
-## 8. Verificar
+```bash
+read -s -p "Clave admin: " AP && echo && docker compose -f docker-compose.prod.yml exec -T -e AP="$AP" backend python -c "import urllib.request,json,os;print(urllib.request.urlopen(urllib.request.Request('http://localhost:5000/api/auth/register',data=json.dumps({'username':'admin','email':'TU_CORREO','password':os.environ['AP']}).encode(),headers={'Content-Type':'application/json'})).read().decode())"
+```
 
-- `curl https://api.dbohorkz.com/api/health` → `{"status":"ok"}`
-- dbohorkz.com carga productos e imágenes; recargar en `/admin` no da 404
-- Login admin, subir una imagen, crear pedido de prueba desde el carrito
-- Mensaje al WhatsApp → el bot responde
-- Chatbot web → llega el correo de Resend
-- `reboot` del VPS → todo vuelve solo y no pide QR
+### 6. Restaurar datos (si hay respaldo)
 
-## 9. Apagar lo anterior
+```bash
+gunzip -c /root/backups/db-AAAA-MM-DD.sql.gz | docker compose -f docker-compose.prod.yml exec -T postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
 
-Cuando todo esté verificado (dejar unos días de margen): eliminar servicios en Railway y el proyecto
-en Cloudflare Pages.
+### 7. Vincular WhatsApp
+
+Abrir `https://wa.dbohorkz.com/api/qr` (usuario `admin` + clave del QR) y escanear desde
+WhatsApp → Dispositivos vinculados. La sesión queda en el volumen `wa-auth`.
 
 ---
 
@@ -120,6 +103,8 @@ cd /opt/dbohorkz
 git pull && docker compose -f docker-compose.prod.yml up -d --build
 # Ver logs
 docker compose -f docker-compose.prod.yml logs -f --tail=100 backend
+# Liberar espacio de imágenes viejas de Docker
+docker image prune -f
 ```
 
 ### Backup diario de la base de datos
@@ -129,3 +114,9 @@ docker compose -f docker-compose.prod.yml logs -f --tail=100 backend
 ```cron
 0 3 * * * cd /opt/dbohorkz && mkdir -p /root/backups && docker compose -f docker-compose.prod.yml exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > /root/backups/db-$(date +\%F).sql.gz && find /root/backups -name 'db-*.sql.gz' -mtime +7 -delete
 ```
+
+## Verificación
+
+- `curl https://api.dbohorkz.com/api/health` → `{"status":"ok"}`
+- dbohorkz.com carga productos e imágenes; recargar en `/admin` no da 404
+- `https://wa.dbohorkz.com/api/send-message` → 404 (no expuesto)

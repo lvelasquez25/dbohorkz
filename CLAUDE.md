@@ -61,7 +61,7 @@ Cart checkout → POST /api/orders           → DB + WhatsApp message
   - `orders` (`/api/orders/`) — create order (public), list/update (admin)
 - **Auth middleware**: `@require_auth` (JWT validation), `@require_admin` (JWT + username check against `ADMIN_USERNAME`)
 - **Image upload**: Validates extension + magic bytes + size (5MB max). Uses Cloudinary if configured, otherwise local filesystem
-- **Database**: SQLite locally; PostgreSQL on Railway (auto-converts `postgres://` to `postgresql://`)
+- **Database**: SQLite locally; PostgreSQL in production (auto-converts `postgres://` to `postgresql://`)
 
 ### Frontend (`frontend/src/`)
 - **Router** (`App.jsx`): `/` → Home, `/admin` → AdminPage. Wrapped in `CartProvider`
@@ -71,7 +71,7 @@ Cart checkout → POST /api/orders           → DB + WhatsApp message
 - **CartDrawer**: Slide-out panel with items, qty controls, customer name/phone fields, WhatsApp checkout button
 - **AdminPage** (`pages/AdminPage.jsx`): Two tabs — "Productos" (CRUD + gallery upload) and "Pedidos" (list + status management)
 - **API client** (`services/api.js`): Axios instance with JWT interceptor. Exports `productosAPI`, `authAPI`, `chatbotAPI`, `ordersAPI`, `imageUrl()` helper
-- **Image URL resolution** (`imageUrl()`): URLs starting with `http` pass through; UUID filenames route to Railway; others stay relative (served by Cloudflare Pages)
+- **Image URL resolution** (`imageUrl()`): URLs starting with `http` pass through; UUID filenames route to the backend (`API_URL`); others stay relative (bundled in the frontend build)
 - **Tailwind CSS** via craco (`craco.config.js`)
 
 ### WhatsApp Service (`whatsapp-service/`)
@@ -92,11 +92,11 @@ Orders are created when a customer clicks "Enviar pedido por WhatsApp" in the ca
 
 ## Known Issues / TODOs
 - Chatbot is FAQ-based only; OpenAI integration is prepared but not wired in (`OPENAI_API_KEY` read but unused)
-- Images uploaded via admin go to Cloudinary (permanent). Original images committed in `frontend/public/Images/` are served by Cloudflare Pages
+- Images uploaded via admin go to Cloudinary (permanent). Original images committed in `frontend/public/Images/` are bundled in the frontend build
 
 ## Environment Variables
 
-**Backend** (`.env` in `backend/` or Railway variables):
+**Backend** (`.env` in `backend/` locally; root `.env` on the VPS):
 - `DATABASE_URL` — PostgreSQL URL (falls back to SQLite)
 - `SECRET_KEY` / `JWT_SECRET_KEY` — Flask + JWT secrets (auto-generated if missing, but not persistent across restarts)
 - `CORS_ORIGINS` — Comma-separated allowed origins (default: `http://localhost:3000`)
@@ -105,8 +105,8 @@ Orders are created when a customer clicks "Enviar pedido por WhatsApp" in the ca
 - `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — Image storage
 - `OPENAI_API_KEY` — Optional, for AI chatbot (not active)
 
-**Frontend** (`.env.production` in `frontend/` or Cloudflare Pages variables):
-- `REACT_APP_API_URL` — Backend URL (default: `https://dbohorkz-production.up.railway.app`)
+**Frontend** (`.env.production` in `frontend/`; on the VPS it's a build arg from `SITE_DOMAIN`):
+- `REACT_APP_API_URL` — Backend URL (default: `https://api.dbohorkz.com`)
 
 **WhatsApp Service** (`.env` in `whatsapp-service/`):
 - `FLASK_API_URL` — Backend URL (default: `http://localhost:5000`)
