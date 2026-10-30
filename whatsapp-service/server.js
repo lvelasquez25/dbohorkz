@@ -4,6 +4,8 @@ const QRCode = require('qrcode');
 const axios = require('axios');
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -15,6 +17,13 @@ const FLASK_API_URL = process.env.FLASK_API_URL || 'http://localhost:5000';
 // QR actual para mostrarlo por web
 let currentQR = null;
 let isReady = false;
+
+// Si el contenedor anterior se detuvo sin cerrar Chromium, queda un bloqueo en el perfil
+// guardado que impide arrancar ("profile appears to be in use by another Chromium process").
+const SESSION_DIR = path.join(__dirname, '.wwebjs_auth', 'session');
+for (const lock of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+  fs.rmSync(path.join(SESSION_DIR, lock), { force: true });
+}
 
 // Inicializar cliente WhatsApp con configuración para Docker
 const client = new Client({
