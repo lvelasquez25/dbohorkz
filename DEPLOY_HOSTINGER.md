@@ -95,12 +95,34 @@ WhatsApp → Dispositivos vinculados. La sesión queda en el volumen `wa-auth`.
 
 ---
 
+## Despliegue automático (GitHub Actions)
+
+Cada push o merge a `main` (excepto cambios solo en `.md`/`docs/`) ejecuta `.github/workflows/deploy.yml`:
+se conecta por SSH al VPS, corre `deploy/deploy.sh` (respaldo → `git pull` → `up -d --build`) y luego
+verifica que `dbohorkz.com` y `api.dbohorkz.com/api/health` respondan. Si falla, GitHub envía un correo.
+También se puede lanzar a mano: GitHub → **Actions** → **Desplegar en VPS** → **Run workflow**.
+
+Configuración (una sola vez, en el VPS):
+
+```bash
+ssh-keygen -t ed25519 -f /root/gh-deploy -N "" -C github-deploy
+echo "command=\"/bin/bash /opt/dbohorkz/deploy/deploy.sh\",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty $(cat /root/gh-deploy.pub)" >> /root/.ssh/authorized_keys
+cat /root/gh-deploy   # copiar TODO (incluidas las líneas BEGIN/END) al secreto de GitHub
+rm /root/gh-deploy /root/gh-deploy.pub
+```
+
+En GitHub: **Settings → Secrets and variables → Actions → New repository secret**, nombre `VPS_SSH_KEY`,
+valor = la llave privada. La llave solo puede ejecutar `deploy.sh` (comando forzado), no abre una consola.
+
+Si cambia la IP o se reinstala el VPS, actualizar `VPS_HOST` y `VPS_KNOWN_HOST` en el workflow
+(`ssh-keyscan -t ed25519 IP`) y repetir la configuración.
+
 ## Operación diaria
 
 ```bash
 cd /opt/dbohorkz
-# Actualizar a la última versión
-git pull && docker compose -f docker-compose.prod.yml up -d --build
+# Actualizar a mano (lo mismo que hace GitHub Actions)
+bash deploy/deploy.sh
 # Ver logs
 docker compose -f docker-compose.prod.yml logs -f --tail=100 backend
 # Liberar espacio de imágenes viejas de Docker
