@@ -16,6 +16,9 @@ class Config:
     _db_url = os.getenv('DATABASE_URL', 'sqlite:///ecommerce.db')
     if _db_url.startswith('postgres://'):
         _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
+    # SQLAlchemy 2.1 usa psycopg (v3) por defecto con 'postgresql://'; el proyecto instala psycopg2
+    if _db_url.startswith('postgresql://'):
+        _db_url = _db_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
     SQLALCHEMY_DATABASE_URI = _db_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False  # Desactiva señales innecesarias de SQLAlchemy
 
